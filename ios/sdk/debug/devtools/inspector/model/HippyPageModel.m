@@ -110,6 +110,7 @@ NSString *const HippyPageImageFormatJPEG = @"jpeg";
         if (!rootView) {
             HippyLogWarn(@"PageModel, screen cast, root view is nil");
             completion(@{});
+            return;
         }
         CGFloat viewWidth = rootView.frame.size.width;
         CGFloat viewHeight = rootView.frame.size.height;
@@ -118,12 +119,19 @@ NSString *const HippyPageImageFormatJPEG = @"jpeg";
             CGFloat scaleX = self.maxSize.width / viewWidth;
             CGFloat scaleY = self.maxSize.height / viewHeight;
             scale = MIN(scaleX, scaleY);
+        } else {
+            HippyLogWarn(@"PageModel, screen cast, root view size is 0");
+            completion(@{});
+            return;
         }
         // root view snapshot
-        UIGraphicsBeginImageContextWithOptions(rootView.frame.size, NO, scale);
-        [rootView drawViewHierarchyInRect:rootView.bounds afterScreenUpdates:YES];
-        UIImage *resultImage = UIGraphicsGetImageFromCurrentImageContext();
-        UIGraphicsEndImageContext();
+        UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat preferredFormat];
+        format.scale = scale;
+        UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:rootView.frame.size format:format];
+        UIImage *resultImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull context) {
+            [rootView drawViewHierarchyInRect:rootView.bounds afterScreenUpdates:YES];
+        }];
+        
         if (resultImage) {
             NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
             NSString *base64String = [self imageToBase64String:resultImage format:self.format];
@@ -141,8 +149,7 @@ NSString *const HippyPageImageFormatJPEG = @"jpeg";
             resultJSON[HippyPageKeySessionId] = @(timestamp);
             self.lastTimestamp = timestamp;
             completion(resultJSON);
-        }
-        else {
+        } else {
             completion(@{});
         }
     });

@@ -42,6 +42,16 @@ let _Vue;
  * @returns {Object} decl - Processed declaration, original declaration by default.
  */
 let _beforeLoadStyle = decl => decl;
+
+/**
+ * before render ElementNode hook
+ *
+ * Use for do some hack to dom tree, such as fixed position, style inherit
+ * percentage unit, style variables etc.
+ *
+ * @param {Object} el - ElementNode
+ * @param {Object} style - computed style sheet
+ */
 let _beforeRenderToNative = () => {};
 
 function setVue(Vue) {
@@ -230,17 +240,6 @@ function deepCopy(data, hash = new WeakMap()) {
   return newData;
 }
 
-/**
- * Detect if the param is falsy or empty
- * @param {any} any
- */
-function isEmpty(any) {
-  if (!any || typeof any !== 'object') {
-    return true;
-  }
-  return Object.keys(any).length === 0;
-}
-
 function isNullOrUndefined(value) {
   return typeof value === 'undefined' || value === null;
 }
@@ -263,7 +262,6 @@ function whitespaceFilter(str) {
 export {
   VUE_VERSION,
   HIPPY_VUE_VERSION,
-  isEmpty,
   isDev,
   setVue,
   getVue,

@@ -1,3 +1,25 @@
+/*
+ *
+ * Tencent is pleased to support the open source community by making
+ * Hippy available.
+ *
+ * Copyright (C) 2022 THL A29 Limited, a Tencent company.
+ * All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 #pragma once
 #include <string>
 
@@ -11,12 +33,85 @@
 #define u8_type char
 #endif
 
+// std::char_traits<uint8_t> is not defined since Xcode 16.3,
+// This is a workaround to define it.
+template <>
+struct std::char_traits<uint8_t> {
+  using char_type = uint8_t;
+  using int_type = int;
+  using off_type = std::streamoff;
+  using pos_type = std::streampos;
+  using state_type = std::mbstate_t;
+  
+  static void assign(char_type& c1, const char_type& c2) noexcept {
+    c1 = c2;
+  }
+  
+  static bool eq(char_type c1, char_type c2) noexcept {
+    return c1 == c2;
+  }
+  
+  static bool lt(char_type c1, char_type c2) noexcept {
+    return c1 < c2;
+  }
+  
+  static int compare(const char_type* s1, const char_type* s2, size_t n) {
+    return std::memcmp(s1, s2, n);
+  }
+  
+  static size_t length(const char_type* s) {
+    size_t len = 0;
+    while (s[len] != 0) ++len;
+    return len;
+  }
+  
+  static const char_type* find(const char_type* s, size_t n, const char_type& a) {
+    for (size_t i = 0; i < n; ++i) {
+      if (s[i] == a) return s + i;
+    }
+    return nullptr;
+  }
+  
+  static char_type* move(char_type* s1, const char_type* s2, size_t n) {
+    return static_cast<char_type*>(std::memmove(s1, s2, n));
+  }
+  
+  static char_type* copy(char_type* s1, const char_type* s2, size_t n) {
+    return static_cast<char_type*>(std::memcpy(s1, s2, n));
+  }
+  
+  static char_type* assign(char_type* s, size_t n, char_type a) {
+    return static_cast<char_type*>(std::memset(s, a, n));
+  }
+  
+  static int_type not_eof(int_type c) noexcept {
+    return (c == eof()) ? 0 : c;
+  }
+  
+  static char_type to_char_type(int_type c) noexcept {
+    return static_cast<char_type>(c);
+  }
+  
+  static int_type to_int_type(char_type c) noexcept {
+    return static_cast<int_type>(c);
+  }
+  
+  static bool eq_int_type(int_type c1, int_type c2) noexcept {
+    return c1 == c2;
+  }
+  
+  static int_type eof() noexcept {
+    return -1;
+  }
+};
+
+
 namespace tdf {
 namespace base {
 
 class unicode_string_view final {
  public:
-  enum class Encoding { Unkown, Latin1, Utf8, Utf16, Utf32 };
+  enum class Encoding { Unknown, Latin1, Utf8, Utf16, Utf32 };
   using string = std::string;
 #ifdef __cpp_char8_t
   using u8string = std::u8string;
@@ -122,7 +217,7 @@ class unicode_string_view final {
   inline void deallocate();
 
  private:
-  Encoding encoding_ = Encoding::Unkown;
+  Encoding encoding_ = Encoding::Unknown;
   union {
     string latin1_string_;
     u8string u8_string_;
@@ -135,6 +230,15 @@ class unicode_string_view final {
 
 }  // namespace base
 }  // namespace tdf
+
+#ifdef __APPLE__
+#if defined(__clang__) && __clang_major__ >= 15
+template<>
+struct std::hash<tdf::base::unicode_string_view::u8string> {
+  std::size_t operator()(const tdf::base::unicode_string_view::u8string& value) const noexcept;
+};
+#endif
+#endif
 
 template <>
 struct std::hash<tdf::base::unicode_string_view> {
